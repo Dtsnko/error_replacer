@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -16,20 +18,32 @@ var (
 func main() {
 	DefineFlags()
 	flag.Parse()
-	files, err := ioutil.ReadDir(*directory)
+	// files, err := ioutil.ReadDir(*directory)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	err := filepath.Walk(*directory, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Process only regular files, skip directories
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+
+		// Perform the error constructor replacements
+		err = replaceErrorConstructors(path)
+		if err != nil {
+			fmt.Printf("Error replacing error constructors in file %s: %s\n", path, err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	// Iterate over the files
-	for _, file := range files {
-		// Check if it's a regular file
-		if file.Mode().IsRegular() {
-			// Get the file name
-
-			fileName := file.Name()
-			replaceErrorConstructors(*directory + "/" + fileName)
-		}
 	}
 
 }
@@ -99,9 +113,6 @@ func constructNewErrorConstructor(model, where, id, params, details, httpStatus 
 	}
 	if params != "" && params != "nil" {
 		res += fmt.Sprintf(".SetTranslationParams(%s)", params)
-	}
-	if where != "" {
-		res += fmt.Sprintf(".SetAppearedIn(%s)", where)
 	}
 
 	return res
